@@ -1,0 +1,45 @@
+# Reporting & Dashboards
+
+
+
+
+## Reflections Session
+
+You have now done the bigest part of the work and have analyzed data with visualizations. therefdore you'll need to conduct reflection session by inviting key stakeholders including programme teams and partners to reflect on the preliminary results. at this stage, carefully select the most relevent analysis and charts for interpreatation.in order to keep participants focused, **a reflection session shall not last more than 2 hours and include not more than 60 slides** 
+
+### Take Reflections Note
+
+- Reflect: question data quality and make suggestions to adjust and identify additional cleaning steps
+- Interpret: develop qualitative intepretations of data patterns
+- Recomend: suggest recomendations in terms of programming adjustments
+- Clasify: define level of sensitivity for certian topics if required
+
+
+## Using Data Library
+
+`Data Library` is WFP's secure space for indexing, versioning and storing data. this service is easy to use and is backed by WFP enterpreice security, management tools, policies and procedures. using the Data Library servies three purposes:
+
+- it helps standrize formating of country office (CO) household survey datasets and metadata
+- it functions as a secure, presistenty storage for all CO household survey data and as a repository of survey reports
+- while the data ownership statys with the country office, Data Library enables sharing of specefic relevent datasets and reports with wider audinces such as Regional Bureaus and Headquarters for global analysis and even with parnters and donors for knowledge sharing and accountability.
+
+### How to Package your Project
+
+for each completed assessment and monitoring survey, CO should upload the following informaton in Data Library, each in seperate folder. good practice is to setup your working repository at the planning stage so you can upload each file once completed.
+
+1. Raw Data
+2. Sntax
+3. Internal Processed Data
+4. External Processed Data
+5. Output Tables
+6. Reports
+7. TOR and Technical Notes
+8. Questionnaire
+9. Secondary Info
+10. Miscellaneous
+
+> The ambition of RAM is to make household food security and essential needs assessment and monitoring survey data available as a public good
+
+
+
+

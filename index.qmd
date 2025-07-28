@@ -1,0 +1,27 @@
+# About the Guide {.unnumbered}
+
+This guide is a collection of ready-to-use packages and scripts designed to support varous tasks, including the development and testing of data collection tools, data cleaning and processing through running high frequency checks and generation of data quality reports. calculation of WFP cooperate indicators and data analysis. it also features features WFP branded visualization and tools to effectively communicate results through reports and dashboards. The guide is build on top of the VAM Resource Center
+
+## Brief Overview
+
+`Survey Planning` will introduce SurveyDesigner and how to adopt WFP codebook and prepare XLSForms ready for data collection. also it will cover checking your data collection tools prior data collection by filling dumpy data to run preliminary tests. also it will cover accessing MoDa data through the API in order to automate the process of accessing data throught R Studio.
+
+`Data Cleaning & Processing` will cover data quality checking components including runing high frequency checks on household level data and logging issues in standarized appraoch of replacing old values with new values in order to have clean data. also it will cover running spatial verification checks and generating data quality reports.
+
+`Indicator Calculation` will introduce how to compute WFP cooperate indicators without adoping long scripts. WFPIndicators package will provide comprehensive functions for calculating indicators and users can only provide the required paramers. 
+
+`Data Analysis` will provide data analysis functions for generating results tables and running statistical refrence for the computed indicators. also it will show how to speedup the process of generating results from survey data.
+
+`Data Visualization` will provide WFP branded color plates and charts for visualizing cooperate indicators and as well keeping branded visuals.
+
+`Dashboard & Reports` will provide markdown reporting templates for rending branded reports that can be quickly shared with auidance. also the package will provide Dashboard templates that can be easily adopted for making information products quickly.
+
+![](assets/Framework.png){width=100%}
+
+## About the Author
+
+
+
+getting the needed information during disaster and crisis takes time with traditional assessments taking as long as five weeks and often unable to provide immediate information needs - to address this WFP developed the 72-hour rapid assessment approach
+
+

@@ -1,0 +1,7 @@
+/* Increase base font size */
+body {
+  font-size: 1.1em; /* Try values like 1.2em or 16px as needed */
+  line-height: 1.6;
+}
+
+

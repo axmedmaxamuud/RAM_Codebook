@@ -1,0 +1,31 @@
+project:
+  type: book
+
+book:
+  title: "RAM Codebook"
+  subtitle: "Research Assessment & Monitoring"
+  author: "Ahmed Mohamoud"
+  sidebar: 
+    logo: assets/RAM.png
+  repo-url: https://github.com/axmedmaxamuud/
+  chapters:
+    - index.qmd
+    - chapter_one.qmd
+    - chapter_two.qmd
+    - chapter_three.qmd
+    - chapter_four.qmd
+    - chapter_five.qmd
+    - chapter_six.qmd
+    - references.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: primary
+    css: styles.css
+  pdf:
+    documentclass: scrreprt
+
+
+

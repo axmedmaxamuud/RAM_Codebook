@@ -1,0 +1,337 @@
+# Calculating Indicators
+
+This chapter will guide you computing outcome indicators in the cooperate indicators compendium. users will only provide data that is inline with the WFP codebook as arguments and than functions will facilitate doing the hard work and do calculations.
+
+```{r, warning=FALSE, message=FALSE, error=FALSE}
+library(tidyverse)
+library(tidyr)
+library(readxl)
+library(labelled)
+library(expss)
+library(WFPindicators)
+
+survey_df3 <- read_excel("input/MoDa_Data_2025-03-13.xlsx")
+
+```
+
+## Food Security & Essential Needs
+
+### Food Consumption Score (FCS)
+
+The food consumption score (FCS) indicator is a composite score based on households' dietary diversity, food consumption frequency and relative nutritional value of different food groups. The FCS aggregated household-level food consumption data, in terms of frequency over the previous seven days and weights data accordingly to the relative value of the consumed food groups. 
+
+Cut-off thresholds are applied to the FCS to classify households into three groups: poor, borderline or acceptable food consumption.
+
+```{r}
+survey_df3 <- compute_fcs(df = survey_df3,
+                          FCSStap = "FCSStap",
+                          FCSPr = "FCSPr",
+                          FCSPulse = "FCSPulse",
+                          FCSVeg = "FCSVeg",
+                          FCSFruit = "FCSFruit",
+                          FCSDairy = "FCSDairy",
+                          FCSFat = "FCSFat",
+                          FCSSugar = "FCSSugar",
+                          cutoff = "Cat21")
+
+```
+
+```{r fcs-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "FCS", "FCSCat")], 5),
+  caption = "Survey Tracking Table",
+  booktabs = TRUE
+)
+```
+
+### Food Consumption Score Nutrition (FCS-N)
+
+FCS-N is a measure of household’s adequacy of key macro and micronutrients-rich food groups. In order to assess nutrient inadequacy, FCS-N looks at the frequencies of consumption of protein-rich, Hem Iron and Vitamin A-rich foods over the 7 days prior to the interview.
+
+```{r}
+# first record NA values to 0
+survey_df3$FCSNPrMeatF[is.na(survey_df3$FCSNPrMeatF)] <- 0
+survey_df3$FCSNPrMeatO[is.na(survey_df3$FCSNPrMeatO)] <- 0
+survey_df3$FCSNPrFish[is.na(survey_df3$FCSNPrFish)] <- 0
+survey_df3$FCSNPrEggs[is.na(survey_df3$FCSNPrEggs)] <- 0
+survey_df3$FCSVeg[is.na(survey_df3$FCSVeg)] <- 0
+survey_df3$FCSNVegGre[is.na(survey_df3$FCSNVegGre)] <- 0
+survey_df3$FCSFruit[is.na(survey_df3$FCSFruit)] <- 0
+
+# Compute aggregates of key micronutrient consumption
+## Vitamin A-Rich Foods
+survey_df3 <- survey_df3 %>% mutate(FGVitA = FCSDairy +FCSNPrMeatO +FCSNPrEggs +
+                                  FCSNVegOrg +FCSNVegGre +FCSNFruiOrg)
+var_label(survey_df3$FGVitA) <- "Consumption of vitamin A-rich foods"
+
+## Protein-Rich Foods
+survey_df3 <- survey_df3 %>% mutate(FGProtein = FCSPr +FCSDairy +FCSNPrMeatF +
+                                  FCSNPrMeatO +FCSNPrFish +FCSNVegOrg)
+var_label(survey_df3$FGProtein) <- "Consumption of protein-rich foods"
+
+## Iron-Rich Foods
+survey_df3 <- survey_df3 %>% mutate(FGHIron = FCSNPrMeatF +FCSNPrMeatO +FCSNPrFish)
+var_label(survey_df3$FGHIron) <- "Consumption of heme iron-rich foods"
+
+## recode into nutritious groups
+survey_df3 <- survey_df3 %>% mutate(FGVitACat = case_when(FGVitA == 0 ~ 1,
+                                                          between(FGVitA,1,6) ~ 2, 
+                                                          FGVitA >= 7 ~ 3),
+                                    FGProteinCat = case_when(FGProtein == 0 ~ 1, 
+                                                             between(FGProtein,1,6) ~ 2,
+                                                             FGProtein >= 7 ~ 3),
+                                    FGHIronCat = case_when(FGHIron == 0 ~ 1,
+                                                           between(FGHIron,1,6) ~ 2,
+                                                           FGHIron >= 7 ~ 3))
+
+# define variables labels and properties for FGVitACat FGProteinCat FGHIronCat
+survey_df3 <- survey_df3 %>%
+  mutate(across(c(FGVitACat, FGProteinCat, FGHIronCat), 
+                ~labelled(., labels = c(
+                  "Never consumed" = 1,
+                  "Consumed sometimes" = 2,
+                  "Consumed at least 7 times" = 3
+                ))))
+
+survey_df3 <- survey_df3 %>%
+  mutate(across(c(FGVitACat, FGProteinCat, FGHIronCat),
+                ~factor(., levels = c(1, 2, 3),
+                        labels = c("Never consumed", "Consumed sometimes", 
+                                   "Consumed at least 7 times"))))
+
+```
+
+```{r FCSN-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "FGVitACat", "FGProteinCat", "FGHIronCat")], 5),
+  caption = "FCSN table",
+  booktabs = TRUE
+)
+```
+
+### Household Dietary Diversity (HDDs)
+
+```{r}
+# compute HHDs
+compute_hdds <- function(df,
+                         HDDSStapCer,
+                         HDDSStapRoot,
+                         HDDSPulse,
+                         HDDSDairy,
+                         HDDSPrMeat,
+                         HDDSPrFish,
+                         HDDSPrEggs,
+                         HDDSVeg,
+                         HDDSFruit,
+                         HDDSFat,
+                         HDDSSugar,
+                         HDDSCond) {
+  
+  # Convert relevant columns to numeric
+  df <- df %>%
+    mutate(across(
+      .cols = all_of(c(HDDSStapCer, HDDSStapRoot, HDDSPulse, HDDSDairy,
+                       HDDSPrMeat, HDDSPrFish, HDDSPrEggs, HDDSVeg,
+                       HDDSFruit, HDDSFat, HDDSSugar, HDDSCond)),
+      .fns = ~ as.numeric(.),
+      .names = "num_{.col}"
+    ))
+  
+  # Compute HDDS using the numeric versions
+  df <- df %>%
+    rowwise() %>%
+    mutate(HDDS = sum(c_across(starts_with("num_")), na.rm = TRUE)) %>%
+    ungroup()
+  
+  # Categorize HDDS
+  df <- df %>%
+    mutate(HDDSCat_IPC = case_when(
+      HDDS <= 2 ~ 1,
+      HDDS >= 3 & HDDS <= 4 ~ 2,
+      HDDS == 5 ~ 3,
+      HDDS >= 6 ~ 4
+    ))
+  
+  return(df)
+}
+
+```
+
+```{r}
+survey_df3 <- compute_hdds(df = survey_df3,
+                           HDDSStapCer = "HDDSStapCer",
+                           HDDSStapRoot = "HDDSStapRoot",
+                           HDDSPulse = "HDDSPulse",
+                           HDDSDairy = "HDDSDairy",
+                           HDDSPrMeat = "HDDSPrMeat",
+                           HDDSPrFish = "HDDSPrFish",
+                           HDDSPrEggs = "HDDSPrEggs",
+                           HDDSVeg = "HDDSVeg",
+                           HDDSFruit = "HDDSFruit",
+                           HDDSFat = "HDDSFat",
+                           HDDSSugar = "HDDSSugar",
+                           HDDSCond = "HDDSCond")
+
+```
+
+```{r HDDS-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "HDDS", "HDDSCat_IPC")], 5),
+  caption = "Survey Tracking Table",
+  booktabs = TRUE
+)
+```
+
+### Reduced Coping Strategies (rCSI)
+
+The Reduced Coping Strategy Index (rCSI), also called CSI food, is used to assess the level of stress3 faced by a household due to a food shortage. It is measured by combining the frequency and severity of the food consumption based strategies households are engaging in. It is calculated using the five standard strategies using a 7-day recall period.
+
+```{r}
+survey_df3 <- survey_df3 %>% 
+  mutate(rCSI = rCSILessQlty + (rCSIBorrow * 2) + rCSIMealSize + (rCSIMealAdult * 3) + rCSIMealNb)
+
+```
+
+```{r rCSI-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "rCSI")], 5),
+  caption = "rCSI table",
+  booktabs = TRUE
+)
+```
+
+### Livelihood Coping Strategies (LCS-FS)
+
+The livelihoods-based coping strategies module is used to better understand longer-term coping capacity of households. For each country, the module must be adapted to suit each country’s context and poor people’s living conditions.
+
+```{r}
+survey_df3 <- survey_df3 %>% 
+  mutate(
+    # stress
+    stress_coping_FS = case_when(
+      Lcs_stress_DomAsset == 20 |  Lcs_stress_DomAsset == 30 ~ 1,
+      Lcs_stress_Saving == 20 | Lcs_stress_Saving == 30 ~ 1,
+      Lcs_stress_BorrowCash == 20 | Lcs_stress_BorrowCash == 30 ~ 1,
+      Lcs_stress_Edu == 20 | Lcs_stress_Edu == 30 ~1,
+      TRUE ~ 0
+    ),
+    
+    # crisis
+    crisis_coping_FS = case_when(
+      Lcs_crisis_Health == 20 |  Lcs_crisis_Health == 30 ~ 1,
+      Lcs_crisis_OutSchool == 20 | Lcs_crisis_OutSchool == 30 ~ 1,
+      Lcs_crisis_ProdAssets == 20 | Lcs_crisis_ProdAssets == 30 ~ 1,
+      TRUE ~ 0
+    ),
+    
+    # emergency
+    emergency_coping_FS = case_when(
+      Lcs_em_Migration == 20 |  Lcs_em_Migration == 30 ~ 1,
+      Lcs_em_ResAsset == 20 | Lcs_em_ResAsset == 30 ~ 1,
+      Lcs_em_Begged == 20 | Lcs_em_Begged == 30 ~ 1,
+      TRUE ~ 0
+    )
+    
+  )
+
+
+survey_df3 <- survey_df3 %>% mutate(Max_coping_behaviourFS = case_when(
+  emergency_coping_FS == 1 ~ 4,
+  crisis_coping_FS == 1 ~ 3,
+  stress_coping_FS == 1 ~ 2,
+  TRUE ~ 1))
+
+var_label(survey_df3$Max_coping_behaviourFS) <- "Summary of asset depletion"
+val_lab(survey_df3$Max_coping_behaviourFS) = num_lab("
+             1 HH not adopting coping strategies
+             2 Stress coping strategies
+             3 Crisis coping strategies
+             4 Emergencies coping strategies
+")
+
+```
+
+```{r LCS-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "Max_coping_behaviourFS")], 5),
+  caption = "LCS table",
+  booktabs = TRUE
+)
+```
+
+### Household Hunger Scale (HHs)
+
+```{r}
+survey_df3 <- survey_df3 %>%
+  mutate(
+    HHhSNoFood_FR_r = case_when(
+      HHSNoFood_FR == "1" ~ 1,
+      HHSNoFood_FR == "2" ~ 1,
+      HHSNoFood_FR == "3" ~ 2,
+      TRUE ~ 0
+    ),
+    HHhSBedHung_FR_r = case_when(
+      HHSBedHung_FR == "1" ~ 1,
+      HHSBedHung_FR == "2" ~ 1,
+      HHSBedHung_FR == "3" ~ 2,
+      TRUE ~ 0
+    ),
+    HHhSNotEat_FR_r = case_when(
+      HHSNotEat_FR == "1" ~ 1,
+      HHSNotEat_FR == "2" ~ 1,
+      HHSNotEat_FR == "3" ~ 2,
+      TRUE ~ 0
+    )
+  )
+
+survey_df3 <- survey_df3 %>%
+  mutate(HHS = HHhSNoFood_FR_r + HHhSBedHung_FR_r + HHhSNotEat_FR_r)
+
+survey_df3 <- survey_df3 %>%
+  mutate(HHSCat = case_when(
+    HHS %in% c(0,1) ~ "No or little hunger in the household",
+    HHS %in% c(2,3) ~ "Moderate hunger in the household",
+    HHS >= 4 ~ "Severe hunger in the household"
+  ))
+
+```
+
+```{r HHS-table, tidy=FALSE}
+knitr::kable(
+  head(survey_df3[, c("ADMIN1Name", "HHS", "HHSCat")], 5),
+  caption = "rCSI table",
+  booktabs = TRUE
+)
+```
+
+### CARI Console
+
+
+
+
+
+## Nutrition
+
+### Minimum Acceptable Deit (MAD)
+
+MAD is a composite indicator used for assessing Infant and Young Children Feeding (IYCF) 
+among children 6 – 23 months.
+
+* Minimum Diet Diversity 6-12 months (MDD): Percentage of  children 6–23 months of age who consumed foods and beverages from at least five out of eight defined food groups during the previous day.
+
+* Minimum Meal Frequency 6-23 months (MMF): Percentage of children 6–23 months of age who consumed solid, semi-solid or soft foods (but also including milk feeds for non-breastfed children) at least the minimum number of times during the previous day.
+
+* Minimum Milk Feeding Frequency for Non-Breastfed Children 6-23 months (MMFF): Percentage of non-breastfed children 6–23 months of age who consumed at least two milk feeds during the previous day.
+
+
+### Minimum Deitary Diversity for Women (MDD-W)
+
+
+
+
+
+
+
+
+
+
