@@ -43,14 +43,28 @@
 \setlength{\emergencystretch}{3em} % prevent overfull lines
 \setcounter{secnumdepth}{5}
 % Make \paragraph and \subparagraph free-standing
+\makeatletter
 \ifx\paragraph\undefined\else
   \let\oldparagraph\paragraph
-  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+  \renewcommand{\paragraph}{
+    \@ifstar
+      \xxxParagraphStar
+      \xxxParagraphNoStar
+  }
+  \newcommand{\xxxParagraphStar}[1]{\oldparagraph*{#1}\mbox{}}
+  \newcommand{\xxxParagraphNoStar}[1]{\oldparagraph{#1}\mbox{}}
 \fi
 \ifx\subparagraph\undefined\else
   \let\oldsubparagraph\subparagraph
-  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+  \renewcommand{\subparagraph}{
+    \@ifstar
+      \xxxSubParagraphStar
+      \xxxSubParagraphNoStar
+  }
+  \newcommand{\xxxSubParagraphStar}[1]{\oldsubparagraph*{#1}\mbox{}}
+  \newcommand{\xxxSubParagraphNoStar}[1]{\oldsubparagraph{#1}\mbox{}}
 \fi
+\makeatother
 
 \usepackage{color}
 \usepackage{fancyvrb}
@@ -70,7 +84,7 @@
 \newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
 \newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
 \newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
-\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
 \newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
 \newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
 \newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
@@ -80,7 +94,7 @@
 \newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
 \newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
 \newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
-\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
 \newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
 \newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
 \newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
@@ -106,44 +120,54 @@
 \makesavenoteenv{longtable}
 \usepackage{graphicx}
 \makeatletter
-\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
-\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
-\makeatother
-% Scale images if necessary, so that they will not overflow the page
-% margins by default, and it is still possible to overwrite the defaults
-% using explicit options in \includegraphics[width, height, ...]{}
-\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
 % Set default figure placement to htbp
-\makeatletter
 \def\fps@figure{htbp}
+\makeatother
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
 \makeatother
 \newlength{\cslhangindent}
 \setlength{\cslhangindent}{1.5em}
 \newlength{\csllabelwidth}
 \setlength{\csllabelwidth}{3em}
-\newlength{\cslentryspacingunit} % times entry-spacing
-\setlength{\cslentryspacingunit}{\parskip}
-\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
- {% don't indent paragraphs
-  \setlength{\parindent}{0pt}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
   % turn on hanging indent if param 1 is 1
   \ifodd #1
-  \let\oldpar\par
-  \def\par{\hangindent=\cslhangindent\oldpar}
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
   \fi
   % set entry spacing
-  \setlength{\parskip}{#2\cslentryspacingunit}
- }%
- {}
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
 \usepackage{calc}
-\newcommand{\CSLBlock}[1]{#1\hfill\break}
-\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
-\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
 \newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 
 \KOMAoption{captions}{tableheading}
-\makeatletter
-\makeatother
 \makeatletter
 \@ifpackageloaded{bookmark}{}{\usepackage{bookmark}}
 \makeatother
@@ -183,23 +207,14 @@
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \makeatother
 \makeatletter
+\makeatother
+\makeatletter
 \@ifpackageloaded{caption}{}{\usepackage{caption}}
 \@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
 \makeatother
-\makeatletter
-\@ifpackageloaded{tcolorbox}{}{\usepackage[skins,breakable]{tcolorbox}}
-\makeatother
-\makeatletter
-\@ifundefined{shadecolor}{\definecolor{shadecolor}{rgb}{.97, .97, .97}}
-\makeatother
-\makeatletter
-\makeatother
-\makeatletter
-\makeatother
-\ifLuaTeX
-  \usepackage{selnolig}  % disable illegal ligatures
-\fi
-\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+
+\usepackage{bookmark}
+
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same} % disable monospaced font for URLs
 \hypersetup{
@@ -211,6 +226,7 @@
   citecolor={Blue},
   urlcolor={Blue},
   pdfcreator={LaTeX via pandoc}}
+
 
 \title{RAM Codebook}
 \usepackage{etoolbox}
@@ -225,7 +241,6 @@
 
 \begin{document}
 \maketitle
-\ifdefined\Shaded\renewenvironment{Shaded}{\begin{tcolorbox}[interior hidden, boxrule=0pt, enhanced, borderline west={3pt}{0pt}{shadecolor}, frame hidden, sharp corners, breakable]}{\end{tcolorbox}}\fi
 
 \renewcommand*\contentsname{Table of contents}
 {
@@ -233,10 +248,10 @@
 \setcounter{tocdepth}{2}
 \tableofcontents
 }
+
 \bookmarksetup{startatroot}
 
-\hypertarget{about-the-guide}{%
-\chapter*{About the Guide}\label{about-the-guide}}
+\chapter*{About the Guide}\label{about-the-guide}
 \addcontentsline{toc}{chapter}{About the Guide}
 
 \markboth{About the Guide}{About the Guide}
@@ -250,8 +265,7 @@ WFP branded visualization and tools to effectively communicate results
 through reports and dashboards. The guide is build on top of the VAM
 Resource Center
 
-\hypertarget{brief-overview}{%
-\section*{Brief Overview}\label{brief-overview}}
+\section*{Brief Overview}\label{brief-overview}
 \addcontentsline{toc}{section}{Brief Overview}
 
 \markright{Brief Overview}
@@ -288,21 +302,34 @@ templates for rending branded reports that can be quickly shared with
 auidance. also the package will provide Dashboard templates that can be
 easily adopted for making information products quickly.
 
-\includegraphics[width=1\textwidth,height=\textheight]{assets/Framework.png}
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{assets/Framework.png}
 
-\hypertarget{about-the-author}{%
-\section*{About the Author}\label{about-the-author}}
+\section*{About the Author}\label{about-the-author}
 \addcontentsline{toc}{section}{About the Author}
 
 \markright{About the Author}
 
+getting the needed information during disaster and crisis takes time
+with traditional assessments taking as long as five weeks and often
+unable to provide immediate information needs - to address this WFP
+developed the 72-hour rapid assessment approach
+
 \bookmarksetup{startatroot}
 
-\hypertarget{survey-planning}{%
-\chapter{Survey Planning}\label{survey-planning}}
+\chapter{Survey Planning}\label{survey-planning}
 
-\hypertarget{surveydesigner}{%
-\section{SurveyDesigner}\label{surveydesigner}}
+when preparing, planning and designing survey, several factors need to
+be considered. this stage of the survey focuses on clearly identifying
+the information that you need to collect and how it will be used. by
+preparing, planning and designing the the survey you'll be able to
+produce more acurate and useful insights.
+
+This chapter will outline how to prepare and design survey tool with
+particular focus on mobile data collection. it addresses the challenges
+of creating a questionnaire and explains how to use SurveyDeisgner and
+MoDa to develop an electronic data collection tool.
+
+\section{SurveyDesigner}\label{surveydesigner}
 
 Survey Designer is an application that allows users in the field to
 quickly and easily build standardized assessment and monitoring surveys.
@@ -312,16 +339,38 @@ well as a variety of other questions and indicators to generate
 standardized surveys. Survey Designer allows users to export surveys as
 an XLSForm, or directly publish the surveys in MoDa or Kobo.
 
-\includegraphics[width=1\textwidth,height=\textheight]{assets/SurveyDesigner.png}
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{assets/SurveyDesigner.png}
 
-\hypertarget{checking-xslforms}{%
-\section{Checking XSLForms}\label{checking-xslforms}}
+\section{Checking XSLForms}\label{checking-xslforms}
 
-\hypertarget{downloading-data-from-moda}{%
-\section{Downloading Data from MoDa}\label{downloading-data-from-moda}}
+\section{Data Analysis Plan (DAP)}\label{data-analysis-plan-dap}
+
+Analysis plan is a simple table that lists the information to be
+collected and guide its analysis. DAP should be prepared prior to
+designing any data collection tool and helps to ensure the efficiency
+and keep the process and analysis focused.
+
+\subsection{Literature Review Matrix}\label{literature-review-matrix}
+
+Information that has been collected by others but relevant to the
+current assessment or study is considered as secondary data. it could be
+population and demographic data, socoi-economic/health and nutrition
+indicators or livelihood systems.
+
+the reason why to use secondary data is to save time, form initial
+hypothesis, enable to focus on potential information gaps, reduce
+assessment fatigue and enhance cooperation and coordination among main
+stakeholders.
+
+\begin{quote}
+when information gaps cannot be filled by secondary data is advised to
+be collected on thos missing issues, if deemed possible and feasible.
+\end{quote}
+
+\section{Downloading Data from MoDa}\label{downloading-data-from-moda}
 
 You can download data from MoDa server through the API using
-modadownloader package. its prety straght forward and you need to
+modadownloader package. its prety straight forward and you need to
 provide your project initial and token information. reproducible example
 can be found in the below;
 
@@ -331,16 +380,155 @@ can be found in the below;
 \CommentTok{\# install.packages("connectoModa")}
 
 \FunctionTok{library}\NormalTok{(connectoModa)}
+\end{Highlighting}
+\end{Shaded}
 
+\begin{verbatim}
+Warning: package 'connectoModa' was built under R version 4.3.3
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
 \CommentTok{\# Example usage to fetch users from MoDA}
 \NormalTok{your\_data }\OtherTok{\textless{}{-}} \FunctionTok{get\_user\_moda}\NormalTok{(}\AttributeTok{form\_id =} \DecValTok{56597}\NormalTok{, }\AttributeTok{Token =} \StringTok{"your\_token\_here"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
+\section{Sampling}\label{sampling}
+
+Data collection is expensive and time consuming. its is also time
+consuming for respondents. deciding on sample size is a trade-off
+between precision and budget and limiting response burden.
+
+\subsection{Why take a sample?}\label{why-take-a-sample}
+
+sample size calculations tell you how many sampling units you need to
+include in your survey to get some required level of precision
+\textbf{The larger sample the better}
+
+\subsection{What are the steps in Sampling
+Design?}\label{what-are-the-steps-in-sampling-design}
+
+to estimate sample size you need to know
+
+\begin{itemize}
+\tightlist
+\item
+  Estimate of the prevalence of key indicator
+\item
+  Precision desired
+\item
+  Level of confidence
+\item
+  Expected response rate
+\item
+  Population
+\end{itemize}
+
+\subsection{How do get a good Sample}\label{how-do-get-a-good-sample}
+
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{assets/Choosing_SamplingMethod.png}
+\#\#\# Simple Random Sample
+
+Simple random sampling is the most straightforward of the probability
+sampling methods. it involves the random selection of households from a
+complete list of all households within the population of interest.
+simple random sampling has a statistical advantage over other sampling
+methods and requires a smaller sample size.
+
+How do we draw simple random sample?
+
+\subsection{Stratified Random Sample}\label{stratified-random-sample}
+
+How to form strata? - How do we draw statistical sample? - How do we
+perform the weights of results that are obtained due to unequal sample
+size in each stratum? - what is special about proportional probability
+(PPS) - when do we apply PPS?
+
+\subsection{Systematic Random
+Sampling}\label{systematic-random-sampling}
+
+systematic sampling shares the same information requirements as simple
+random sampling. in constant to random selection, this method involves
+the systematic selection of households from a complete list of all
+households within the population of interest.
+
+what are random ordered and periodic purpose? - when do we choose
+systematic sample? - how do we compute the characteristic of systematic
+sample
+
+\subsection{Cluster Sampling}\label{cluster-sampling}
+
+how do we draw cluster sample? - when is a cluster sampling an effective
+design for obtaining information at minimum cost?
+
+what is a two-stage cluster sample? - when do we use two-stage sampling?
+- how do we draw 2 stage sample.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{calculate\_sample\_size }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(margin\_of\_error, confidence\_level, population\_size) \{}
+  \CommentTok{\# Validate input parameters}
+  \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.numeric}\NormalTok{(margin\_of\_error) }\SpecialCharTok{||}\NormalTok{ margin\_of\_error }\SpecialCharTok{\textless{}=} \DecValTok{0} \SpecialCharTok{||}\NormalTok{ margin\_of\_error }\SpecialCharTok{\textgreater{}=} \DecValTok{1}\NormalTok{) \{}
+    \FunctionTok{stop}\NormalTok{(}\StringTok{"Margin of error must be a numeric value between 0 and 1 (exclusive)."}\NormalTok{)}
+\NormalTok{  \}}
+  \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.numeric}\NormalTok{(confidence\_level) }\SpecialCharTok{||} \SpecialCharTok{!}\NormalTok{confidence\_level }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\FloatTok{0.90}\NormalTok{, }\FloatTok{0.95}\NormalTok{, }\FloatTok{0.99}\NormalTok{)) \{}
+    \FunctionTok{stop}\NormalTok{(}\StringTok{"Confidence level must be 0.90, 0.95, or 0.99."}\NormalTok{)}
+\NormalTok{  \}}
+  \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.numeric}\NormalTok{(population\_size) }\SpecialCharTok{||}\NormalTok{ population\_size }\SpecialCharTok{\textless{}=} \DecValTok{0}\NormalTok{) \{}
+    \FunctionTok{stop}\NormalTok{(}\StringTok{"Population size must be a positive numeric value."}\NormalTok{)}
+\NormalTok{  \}}
+
+  \CommentTok{\# Calculate the Z{-}score based on the confidence level}
+\NormalTok{  alpha }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{{-}}\NormalTok{ confidence\_level}
+\NormalTok{  z\_score }\OtherTok{\textless{}{-}} \FunctionTok{qnorm}\NormalTok{(}\DecValTok{1} \SpecialCharTok{{-}}\NormalTok{ alpha }\SpecialCharTok{/} \DecValTok{2}\NormalTok{)}
+
+  \CommentTok{\# Calculate the sample size}
+\NormalTok{  p }\OtherTok{\textless{}{-}} \FloatTok{0.5} \CommentTok{\# Assuming maximum variability (50\%) for a conservative estimate}
+\NormalTok{  numerator }\OtherTok{\textless{}{-}}\NormalTok{ (z\_score}\SpecialCharTok{\^{}}\DecValTok{2} \SpecialCharTok{*}\NormalTok{ p }\SpecialCharTok{*}\NormalTok{ (}\DecValTok{1} \SpecialCharTok{{-}}\NormalTok{ p))}
+\NormalTok{  denominator }\OtherTok{\textless{}{-}}\NormalTok{ (margin\_of\_error}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{)}
+\NormalTok{  sample\_size\_infinite }\OtherTok{\textless{}{-}}\NormalTok{ numerator }\SpecialCharTok{/}\NormalTok{ denominator}
+
+  \CommentTok{\# Adjust for finite population size (if population size is not very large)}
+  \ControlFlowTok{if}\NormalTok{ (population\_size }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{) \{}
+\NormalTok{    sample\_size }\OtherTok{\textless{}{-}} \FunctionTok{ceiling}\NormalTok{((sample\_size\_infinite }\SpecialCharTok{*}\NormalTok{ population\_size) }\SpecialCharTok{/}
+\NormalTok{                              (sample\_size\_infinite }\SpecialCharTok{+}\NormalTok{ population\_size }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{))}
+\NormalTok{  \} }\ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    sample\_size }\OtherTok{\textless{}{-}} \FunctionTok{ceiling}\NormalTok{(sample\_size\_infinite)}
+\NormalTok{  \}}
+
+  \FunctionTok{return}\NormalTok{(sample\_size)}
+\NormalTok{\}}
+
+\CommentTok{\# Example usage:}
+\NormalTok{margin\_error }\OtherTok{\textless{}{-}} \FloatTok{0.05} \CommentTok{\# 5\% margin of error}
+\NormalTok{confidence }\OtherTok{\textless{}{-}} \FloatTok{0.95} \CommentTok{\# 95\% confidence level}
+\NormalTok{population }\OtherTok{\textless{}{-}} \DecValTok{1000} \CommentTok{\# Population size of 1000}
+
+\NormalTok{recommended\_n }\OtherTok{\textless{}{-}} \FunctionTok{calculate\_sample\_size}\NormalTok{(margin\_error, confidence, population)}
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Recommended sample size:"}\NormalTok{, recommended\_n, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Recommended sample size: 278 
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Example with a very large population (effectively infinite):}
+\NormalTok{large\_population\_n }\OtherTok{\textless{}{-}} \FunctionTok{calculate\_sample\_size}\NormalTok{(}\FloatTok{0.03}\NormalTok{, }\FloatTok{0.99}\NormalTok{, }\DecValTok{1000000}\NormalTok{)}
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Recommended sample size for large population:"}\NormalTok{, large\_population\_n, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Recommended sample size for large population: 1840 
+\end{verbatim}
+
 \bookmarksetup{startatroot}
 
-\hypertarget{data-cleaning-processing}{%
-\chapter{Data Cleaning \& Processing}\label{data-cleaning-processing}}
+\chapter{Data Cleaning \& Processing}\label{data-cleaning-processing}
 
 in each chapter or part of the book, there will be dedicated package, so
 please ensure to install pre-requisted packages before runing the codes.
@@ -362,18 +550,27 @@ frequency checks and spot check for survey data to flag issues that need
 to be verified and made changes by keeping reference of alterations made
 to the original data. There are predetermined quality checks that can be
 applied to any data and as well the data officer can draft unique checks
-based on the context. This brings the flexibililty of adopting existing
-spot checks and as well adding your own checking paratemers to the
+based on the context. This brings the flexibility of adopting existing
+spot checks and as well adding your own checking parameters to the
 process and generate cleaning log book.
 
-\hypertarget{productivity-coverage}{%
-\section{Productivity \& Coverage}\label{productivity-coverage}}
+Data cleaning is an essential step between data collection and data
+analysis. Raw data is always imperfect and needs to be prepared for a
+high quality analysis and overall replicability.
+
+\includegraphics[width=0.4\linewidth,height=\textheight,keepaspectratio]{assets/chapter_2_cover.png}
+
+Data quality means having accurate, complete, and reliable information.
+It's like making sure the puzzle pieces fit perfectly, so we can trust
+the picture they create. Good data quality helps us make better
+decisions and understand what's happening.
+
+\section{Productivity \& Coverage}\label{productivity-coverage}
 
 topics to work!! to be deleted :) - assessment tracking sheet report -
 assessment productivity - daily valid surveys
 
-\hypertarget{survey-coverage}{%
-\subsection{Survey Coverage}\label{survey-coverage}}
+\subsection{Survey Coverage}\label{survey-coverage}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -401,14 +598,14 @@ assessment productivity - daily valid surveys
 \end{Shaded}
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.0948}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.0948}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1207}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1379}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1379}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1379}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1379}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 14\tabcolsep) * \real{0.1379}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.0948}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.0948}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1207}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1379}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1379}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1379}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1379}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1379}}@{}}
 \caption{Survey Tracking Table}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -459,8 +656,7 @@ Admin 1 & 4 & 31 & 2 & 5 & 15 & 6 & 3 \\
 Admin 1 & 5 & 42 & 5 & 9 & 14 & 7 & 7 \\
 \end{longtable}
 
-\hypertarget{enumerator-performance}{%
-\subsection{Enumerator Performance}\label{enumerator-performance}}
+\subsection{Enumerator Performance}\label{enumerator-performance}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -477,14 +673,75 @@ Admin 1 & 5 & 42 & 5 & 9 & 14 & 7 & 7 \\
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{standard-checks}{%
-\section{Standard Checks}\label{standard-checks}}
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{knitr}\SpecialCharTok{::}\FunctionTok{kable}\NormalTok{(}
+  \FunctionTok{head}\NormalTok{(enum\_productivity, }\DecValTok{5}\NormalTok{), }\AttributeTok{caption =} \StringTok{\textquotesingle{}Enumerator Productivity\textquotesingle{}}\NormalTok{,}
+  \AttributeTok{booktabs =} \ConstantTok{TRUE}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
 
-\hypertarget{duplicated-surveys}{%
-\subsection{Duplicated Surveys}\label{duplicated-surveys}}
+\begin{longtable}[]{@{}lrrr@{}}
+\caption{Enumerator Productivity}\tabularnewline
+\toprule\noalign{}
+EnuName & days\_worked & total\_surveys\_done & daily\_average \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+EnuName & days\_worked & total\_surveys\_done & daily\_average \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Enum 1 & 5 & 193 & 38.6 \\
+Enum 2 & 5 & 200 & 40.0 \\
+Enum 3 & 5 & 193 & 38.6 \\
+Enum 4 & 5 & 228 & 45.6 \\
+Enum 5 & 5 & 186 & 37.2 \\
+\end{longtable}
 
-\hypertarget{check-missing-data}{%
-\subsection{Check Missing Data}\label{check-missing-data}}
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{ggplot}\NormalTok{(enum\_productivity, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ EnuName, }\AttributeTok{y =}\NormalTok{ total\_surveys\_done)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_bar}\NormalTok{(}\AttributeTok{stat =} \StringTok{"identity"}\NormalTok{) }\SpecialCharTok{+} \FunctionTok{theme\_minimal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_two_files/figure-pdf/unnamed-chunk-4-1.pdf}}
+
+\section{Standard Checks}\label{standard-checks}
+
+\subsection{Duplicated Surveys}\label{duplicated-surveys}
+
+This check will help you to identify if there is duplicated record in
+the data and in most of the case uuid is the unique identifier which is
+auto generated.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{check\_dup\_surveys }\OtherTok{\textless{}{-}} \FunctionTok{check\_duplicate\_uuid}\NormalTok{(}\AttributeTok{data =}\NormalTok{ survey\_df)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+The following UUID(s) are duplicated:
+\end{verbatim}
+
+\begin{verbatim}
+character(0)
+\end{verbatim}
+
+\subsection{Check Missing Data}\label{check-missing-data}
+
+Before we think about missing data. first lets understand our survey
+tool as there will be constraints and relevancy logic patterns that will
+skip some questions if not relevent. after we're clear from that. we can
+know anticipate that some questions are mandatory to collect and
+therefore we need to check how many missing varibles do we have on each.
+so in case if you see we're missing 60\% or more of key indicator you
+can check the tool first and than secondly follow with enumerators to
+undersatnad the pattern and make correction.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -520,8 +777,7 @@ EnuPartner & EnuPartner & 0 & 0 \\
 EnuSex & EnuSex & 0 & 0 \\
 \end{longtable}
 
-\hypertarget{check-survey-time}{%
-\subsection{Check Survey Time}\label{check-survey-time}}
+\subsection{Check Survey Time}\label{check-survey-time}
 
 \begin{itemize}
 \tightlist
@@ -582,13 +838,13 @@ data collection
 \end{Shaded}
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.2971}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1377}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.2464}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.0652}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.0507}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1304}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.0725}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2971}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1377}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2464}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0652}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0507}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1304}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0725}}@{}}
 \caption{Here is a nice table!}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -640,8 +896,7 @@ d2f90a3e-47a5-464d4c-92989e-57dec9b1fa02 & interview\_duration & survey
 filled with less/more time & & check & -24.9666666666667 & \\
 \end{longtable}
 
-\hypertarget{check-other-responses}{%
-\subsection{Check Other Responses}\label{check-other-responses}}
+\subsection{Check Other Responses}\label{check-other-responses}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -663,13 +918,13 @@ filled with less/more time & & check & -24.9666666666667 & \\
 \end{Shaded}
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.2228}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1304}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.2772}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.0489}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1141}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.1522}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 12\tabcolsep) * \real{0.0543}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2228}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1304}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2772}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0489}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1141}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1522}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.0543}}@{}}
 \caption{Here is a nice table!}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -726,11 +981,72 @@ Other response that need to be checked and recoded & & translate and
 recode & looong narative & \\
 \end{longtable}
 
-\hypertarget{check-outliers}{%
-\subsection{Check Outliers}\label{check-outliers}}
+\subsection{Check Outliers}\label{check-outliers}
 
-\hypertarget{specefic-checks}{%
-\section{Specefic Checks}\label{specefic-checks}}
+there are two common ways to detect ourtliers, first using the range of
+3 standards devitations from the mean and secondly using the range of
+1.5 inter quartile from the 2st and 3rd uartile.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{detect\_outliers }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(data) \{}
+  \CommentTok{\# Select only numeric columns}
+\NormalTok{  numeric\_data }\OtherTok{\textless{}{-}}\NormalTok{ data }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(}\FunctionTok{where}\NormalTok{(is.numeric))}
+
+  \CommentTok{\# Pivot to long format to handle all variables uniformly}
+\NormalTok{  outlier\_data }\OtherTok{\textless{}{-}}\NormalTok{ numeric\_data }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{pivot\_longer}\NormalTok{(}\FunctionTok{everything}\NormalTok{(), }\AttributeTok{names\_to =} \StringTok{"variable"}\NormalTok{, }\AttributeTok{values\_to =} \StringTok{"value"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{mutate}\NormalTok{(}
+      \AttributeTok{log\_value =} \FunctionTok{log}\NormalTok{(value),}
+      \AttributeTok{is\_outlier\_raw =} \FunctionTok{abs}\NormalTok{(value }\SpecialCharTok{{-}} \FunctionTok{mean}\NormalTok{(value, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)) }\SpecialCharTok{\textgreater{}} \DecValTok{3} \SpecialCharTok{*} \FunctionTok{sd}\NormalTok{(value, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \AttributeTok{is\_outlier\_log =} \FunctionTok{abs}\NormalTok{(log\_value }\SpecialCharTok{{-}} \FunctionTok{mean}\NormalTok{(log\_value, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)) }\SpecialCharTok{\textgreater{}} \DecValTok{3} \SpecialCharTok{*} \FunctionTok{sd}\NormalTok{(log\_value, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+      \AttributeTok{type =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{        is\_outlier\_raw }\SpecialCharTok{\&}\NormalTok{ is\_outlier\_log }\SpecialCharTok{\textasciitilde{}} \StringTok{"both"}\NormalTok{,}
+\NormalTok{        is\_outlier\_raw }\SpecialCharTok{\textasciitilde{}} \StringTok{"raw"}\NormalTok{,}
+\NormalTok{        is\_outlier\_log }\SpecialCharTok{\textasciitilde{}} \StringTok{"log"}\NormalTok{,}
+        \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \StringTok{"none"}
+\NormalTok{      )}
+\NormalTok{    ) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{filter}\NormalTok{(type }\SpecialCharTok{!=} \StringTok{"none"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+    \FunctionTok{select}\NormalTok{(variable, value, log\_value, type)}
+
+  \FunctionTok{return}\NormalTok{(outlier\_data)}
+\NormalTok{\}}
+
+\NormalTok{outliers\_check }\OtherTok{\textless{}{-}} \FunctionTok{detect\_outliers}\NormalTok{(}\AttributeTok{data =}\NormalTok{ survey\_df)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{knitr}\SpecialCharTok{::}\FunctionTok{kable}\NormalTok{(}
+  \FunctionTok{head}\NormalTok{(outliers\_check, }\DecValTok{5}\NormalTok{), }\AttributeTok{caption =} \StringTok{\textquotesingle{}Here is a nice table!\textquotesingle{}}\NormalTok{,}
+  \AttributeTok{booktabs =} \ConstantTok{TRUE}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrl@{}}
+\caption{Here is a nice table!}\tabularnewline
+\toprule\noalign{}
+variable & value & log\_value & type \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+variable & value & log\_value & type \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Lcs\_em\_Migration & 9999 & 9.21024 & raw \\
+Lcs\_em\_Begged & 9999 & 9.21024 & raw \\
+Lcs\_stress\_Saving & 9999 & 9.21024 & raw \\
+Lcs\_stress\_BorrowCash & 9999 & 9.21024 & raw \\
+Lcs\_crisis\_ProdAssets & 9999 & 9.21024 & raw \\
+\end{longtable}
+
+\section{Specefic Checks}\label{specefic-checks}
 
 This is the power house of the concept as it will not be possible to log
 all issues that need to inspected from data due to the dynamics of
@@ -739,11 +1055,9 @@ therefore this specefic checks unit will show you how to first identify
 and log all issues that need to be addressed/flagged. the below log
 sheet function topic will guide you how to master the process.
 
-\hypertarget{demographics-checks}{%
-\subsection{Demographics Checks}\label{demographics-checks}}
+\subsection{Demographics Checks}\label{demographics-checks}
 
-\hypertarget{food-consumption-check}{%
-\subsection{Food Consumption Check}\label{food-consumption-check}}
+\subsection{Food Consumption Check}\label{food-consumption-check}
 
 The calculate\_fsl\_indicators function is a powerful tool for computing
 essential food security and livelihood (FSL) indicators, including the
@@ -801,13 +1115,7 @@ clusters or field monitors.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
-
-{\centering \includegraphics{chapter_two_files/figure-pdf/unnamed-chunk-10-1.pdf}
-
-}
-
-\end{figure}
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_two_files/figure-pdf/unnamed-chunk-14-1.pdf}}
 
 By carefully examining and interpreting the ridge chart, you can gain
 valuable insights into the distributions and flag any inconsistency for
@@ -821,13 +1129,7 @@ group the reduced coping strategies at area office level.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
-
-{\centering \includegraphics{chapter_two_files/figure-pdf/unnamed-chunk-11-1.pdf}
-
-}
-
-\end{figure}
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_two_files/figure-pdf/unnamed-chunk-15-1.pdf}}
 
 similarly, you can group distributions at field monitor level to gain
 more insight at the consistency of reported distributions across
@@ -840,24 +1142,39 @@ different monitors.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_two_files/figure-pdf/unnamed-chunk-16-1.pdf}}
 
-{\centering \includegraphics{chapter_two_files/figure-pdf/unnamed-chunk-12-1.pdf}
+\section{Apply Cleaning Log}\label{apply-cleaning-log}
 
-}
+logbook is the main power-hourse and it will help you flag your data
+based on the standard and specefic checks and log them in one format and
+send it to field team for review and feedback and finally use the new
+value information to replace with the old values in order to generate
+clean data. using \textbf{log\_sheet()} you can achive it all.
 
-\end{figure}
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{assets/illustrations/logbook.png}
 
-\hypertarget{apply-cleaning-log}{%
-\section{Apply Cleaning Log}\label{apply-cleaning-log}}
+\section{Spatial Verification}\label{spatial-verification}
 
-\hypertarget{spatial-verification}{%
-\section{Spatial Verification}\label{spatial-verification}}
+In order to ensure the accuracy and relablity of data we need to run
+spatial verification checks that will help us to determine if the data
+or the point is collected on the right location. for instance, lets
+assume we're doing school feeding programme baseline and want to collect
+2 surveys from 5 schools in two districts. 10 surveys were than uploaded
+into the MoDa server after 3 days. and now we need to check if the
+schools visited are the right sampled ones first, and secondly if the
+distribution of the data is also aligning with the schools.
+
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{assets/illustrations/spatial_verification.png}
 
 \bookmarksetup{startatroot}
 
-\hypertarget{calculating-indicators}{%
-\chapter{Calculating Indicators}\label{calculating-indicators}}
+\chapter{Calculating Indicators}\label{calculating-indicators}
+
+This chapter will guide you computing outcome indicators in the
+cooperate indicators compendium. users will only provide data that is
+inline with the WFP codebook as arguments and than functions will
+facilitate doing the hard work and do calculations.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -866,18 +1183,17 @@ different monitors.
 \FunctionTok{library}\NormalTok{(readxl)}
 \FunctionTok{library}\NormalTok{(labelled)}
 \FunctionTok{library}\NormalTok{(expss)}
+\FunctionTok{library}\NormalTok{(WFPindicators)}
 
 \NormalTok{survey\_df3 }\OtherTok{\textless{}{-}} \FunctionTok{read\_excel}\NormalTok{(}\StringTok{"input/MoDa\_Data\_2025{-}03{-}13.xlsx"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{food-security-essential-needs}{%
 \section{Food Security \& Essential
-Needs}\label{food-security-essential-needs}}
+Needs}\label{food-security-essential-needs}
 
-\hypertarget{food-consumption-score-fcs}{%
 \subsection{Food Consumption Score
-(FCS)}\label{food-consumption-score-fcs}}
+(FCS)}\label{food-consumption-score-fcs}
 
 The food consumption score (FCS) indicator is a composite score based on
 households' dietary diversity, food consumption frequency and relative
@@ -888,57 +1204,6 @@ of the consumed food groups.
 
 Cut-off thresholds are applied to the FCS to classify households into
 three groups: poor, borderline or acceptable food consumption.
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\CommentTok{\# compute FCS function}
-\NormalTok{compute\_fcs }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(df,}
-\NormalTok{                        FCSStap,}
-\NormalTok{                        FCSPulse,}
-\NormalTok{                        FCSPr,}
-\NormalTok{                        FCSVeg,}
-\NormalTok{                        FCSFruit,}
-\NormalTok{                        FCSDairy,}
-\NormalTok{                        FCSFat,}
-\NormalTok{                        FCSSugar,}
-\NormalTok{                        cutoff)\{}
-  
-  \CommentTok{\# check food consumption variables}
-\NormalTok{  fcs\_cols }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(FCSStap, FCSPulse, FCSPr, FCSVeg, FCSFruit, FCSDairy, FCSFat, FCSSugar)}
-  
-\NormalTok{  check\_df }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(}\FunctionTok{pmax}\NormalTok{(}\SpecialCharTok{!!!}\FunctionTok{syms}\NormalTok{(fcs\_cols), }\AttributeTok{na.rm =}\NormalTok{ T) }\SpecialCharTok{==} \FunctionTok{pmin}\NormalTok{(}\SpecialCharTok{!!!}\FunctionTok{syms}\NormalTok{(fcs\_cols), }\AttributeTok{na.rm =}\NormalTok{ T))}
-  
-  \CommentTok{\# check cutoff argument}
-  \ControlFlowTok{if}\NormalTok{(}\SpecialCharTok{!}\NormalTok{(cutoff }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{"Cat28"}\NormalTok{, }\StringTok{"Cat21"}\NormalTok{))) \{}
-    \FunctionTok{stop}\NormalTok{(glue}\SpecialCharTok{::}\FunctionTok{glue}\NormalTok{(}\StringTok{"\textasciigrave{}cutoff\textasciigrave{} must be one of: \textasciigrave{}Cat28\textasciigrave{} or \textasciigrave{}Cat21\textasciigrave{}, not \{cutoff\}."}\NormalTok{))}
-\NormalTok{  \}}
-  
-  \ControlFlowTok{if}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(FCSStap) }\SpecialCharTok{\&\&} \SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(FCSPulse)) \{}
-\NormalTok{    df }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{\%\textgreater{}\%}
-      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{FCS =}\NormalTok{ (FCSStap }\SpecialCharTok{*} \DecValTok{2}\NormalTok{) }\SpecialCharTok{+}\NormalTok{ (FCSPulse }\SpecialCharTok{*} \DecValTok{3}\NormalTok{) }\SpecialCharTok{+}\NormalTok{ (FCSPr }\SpecialCharTok{*} \DecValTok{4}\NormalTok{) }\SpecialCharTok{+}
-\NormalTok{               (FCSDairy }\SpecialCharTok{*} \DecValTok{4}\NormalTok{) }\SpecialCharTok{+}\NormalTok{ FCSVeg }\SpecialCharTok{+}\NormalTok{ FCSFruit }\SpecialCharTok{+}\NormalTok{ (FCSFat }\SpecialCharTok{*} \FloatTok{0.5}\NormalTok{) }\SpecialCharTok{+}
-\NormalTok{               (FCSSugar }\SpecialCharTok{*} \FloatTok{0.5}\NormalTok{))}
-    
-\NormalTok{    df }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{\%\textgreater{}\%}
-      \FunctionTok{mutate}\NormalTok{(}
-        \AttributeTok{FCSCat =} \FunctionTok{case\_when}\NormalTok{(}
-\NormalTok{          cutoff }\SpecialCharTok{==} \StringTok{"Cat28"} \SpecialCharTok{\textasciitilde{}} \FunctionTok{case\_when}\NormalTok{(}
-\NormalTok{            FCS }\SpecialCharTok{\textless{}=} \DecValTok{28} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{,}
-            \FunctionTok{between}\NormalTok{(FCS, }\FloatTok{28.5}\NormalTok{, }\DecValTok{42}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
-            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}
-\NormalTok{          ),}
-\NormalTok{          cutoff }\SpecialCharTok{==} \StringTok{"Cat21"} \SpecialCharTok{\textasciitilde{}} \FunctionTok{case\_when}\NormalTok{(}
-\NormalTok{            FCS }\SpecialCharTok{\textless{}=} \DecValTok{21} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{,}
-            \FunctionTok{between}\NormalTok{(FCS, }\FloatTok{21.5}\NormalTok{, }\DecValTok{35}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
-            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}
-\NormalTok{          )}
-\NormalTok{        )}
-\NormalTok{      )}
-\NormalTok{  \}}
-  
-\NormalTok{\}}
-\end{Highlighting}
-\end{Shaded}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -984,9 +1249,8 @@ Admin 1 & 40.5 & 3 \\
 Admin 3 & 38.0 & 3 \\
 \end{longtable}
 
-\hypertarget{food-consumption-score-nutrition-fcs-n}{%
 \subsection{Food Consumption Score Nutrition
-(FCS-N)}\label{food-consumption-score-nutrition-fcs-n}}
+(FCS-N)}\label{food-consumption-score-nutrition-fcs-n}
 
 FCS-N is a measure of household's adequacy of key macro and
 micronutrients-rich food groups. In order to assess nutrient inadequacy,
@@ -1058,10 +1322,10 @@ and Vitamin A-rich foods over the 7 days prior to the interview.
 \end{Shaded}
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1236}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2921}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2921}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2921}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1236}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2921}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2921}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2921}}@{}}
 \caption{FCSN table}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -1101,9 +1365,8 @@ Admin 3 & Consumed at least 7 times & Consumed at least 7 times &
 Consumed at least 7 times \\
 \end{longtable}
 
-\hypertarget{household-dietary-diversity-hdds}{%
 \subsection{Household Dietary Diversity
-(HDDs)}\label{household-dietary-diversity-hdds}}
+(HDDs)}\label{household-dietary-diversity-hdds}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1199,9 +1462,8 @@ Admin 1 & 6 & 4 \\
 Admin 3 & 7 & 4 \\
 \end{longtable}
 
-\hypertarget{reduced-coping-strategies-rcsi}{%
 \subsection{Reduced Coping Strategies
-(rCSI)}\label{reduced-coping-strategies-rcsi}}
+(rCSI)}\label{reduced-coping-strategies-rcsi}
 
 The Reduced Coping Strategy Index (rCSI), also called CSI food, is used
 to assess the level of stress3 faced by a household due to a food
@@ -1246,9 +1508,8 @@ Admin 1 & 13 \\
 Admin 3 & 16 \\
 \end{longtable}
 
-\hypertarget{livelihood-coping-strategies-lcs-fs}{%
 \subsection{Livelihood Coping Strategies
-(LCS-FS)}\label{livelihood-coping-strategies-lcs-fs}}
+(LCS-FS)}\label{livelihood-coping-strategies-lcs-fs}
 
 The livelihoods-based coping strategies module is used to better
 understand longer-term coping capacity of households. For each country,
@@ -1332,9 +1593,8 @@ Admin 1 & 4 \\
 Admin 3 & 4 \\
 \end{longtable}
 
-\hypertarget{household-hunger-scale-hhs}{%
 \subsection{Household Hunger Scale
-(HHs)}\label{household-hunger-scale-hhs}}
+(HHs)}\label{household-hunger-scale-hhs}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1401,201 +1661,363 @@ Admin 1 & 3 & Moderate hunger in the household \\
 Admin 3 & 5 & Severe hunger in the household \\
 \end{longtable}
 
-\hypertarget{nutrition}{%
-\section{Nutrition}\label{nutrition}}
+\subsection{CARI Console}\label{cari-console}
 
-\hypertarget{minimum-acceptable-deit-mad}{%
+\section{Nutrition}\label{nutrition}
+
 \subsection{Minimum Acceptable Deit
-(MAD)}\label{minimum-acceptable-deit-mad}}
+(MAD)}\label{minimum-acceptable-deit-mad}
 
 MAD is a composite indicator used for assessing Infant and Young
 Children Feeding (IYCF) among children 6 -- 23 months.
 
-\hypertarget{minimum-deitary-diversity-for-women-mdd-w}{%
+\begin{itemize}
+\item
+  Minimum Diet Diversity 6-12 months (MDD): Percentage of children 6--23
+  months of age who consumed foods and beverages from at least five out
+  of eight defined food groups during the previous day.
+\item
+  Minimum Meal Frequency 6-23 months (MMF): Percentage of children 6--23
+  months of age who consumed solid, semi-solid or soft foods (but also
+  including milk feeds for non-breastfed children) at least the minimum
+  number of times during the previous day.
+\item
+  Minimum Milk Feeding Frequency for Non-Breastfed Children 6-23 months
+  (MMFF): Percentage of non-breastfed children 6--23 months of age who
+  consumed at least two milk feeds during the previous day.
+\end{itemize}
+
 \subsection{Minimum Deitary Diversity for Women
-(MDD-W)}\label{minimum-deitary-diversity-for-women-mdd-w}}
+(MDD-W)}\label{minimum-deitary-diversity-for-women-mdd-w}
 
 \bookmarksetup{startatroot}
 
-\hypertarget{data-analysis}{%
-\chapter{Data Analysis}\label{data-analysis}}
+\chapter{Data Analysis}\label{data-analysis}
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \FunctionTok{library}\NormalTok{(tidyverse)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-Warning: package 'tidyverse' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'ggplot2' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'tibble' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'tidyr' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'readr' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'purrr' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'dplyr' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'stringr' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'forcats' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
-Warning: package 'lubridate' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{verbatim}
--- Attaching core tidyverse packages ------------------------ tidyverse 2.0.0 --
-v dplyr     1.1.4     v readr     2.1.4
-v forcats   1.0.0     v stringr   1.5.0
-v ggplot2   3.4.4     v tibble    3.2.1
-v lubridate 1.9.2     v tidyr     1.3.0
-v purrr     1.0.2     
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x dplyr::filter() masks stats::filter()
-x dplyr::lag()    masks stats::lag()
-i Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \FunctionTok{library}\NormalTok{(tidyr)}
 \FunctionTok{library}\NormalTok{(readxl)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-Warning: package 'readxl' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \FunctionTok{library}\NormalTok{(labelled)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-Warning: package 'labelled' was built under R version 4.2.3
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \FunctionTok{library}\NormalTok{(expss)}
-\end{Highlighting}
-\end{Shaded}
 
-\begin{verbatim}
-Loading required package: maditr
-
-To aggregate several columns with one summary: take(mtcars, mpg, hp, fun = mean, by = am)
-
-
-Attaching package: 'maditr'
-
-The following objects are masked from 'package:dplyr':
-
-    between, coalesce, first, last
-
-The following object is masked from 'package:purrr':
-
-    transpose
-
-The following object is masked from 'package:readr':
-
-    cols
-
-
-Use 'expss_output_rnotebook()' to display tables inside R Notebooks.
- To return to the console output, use 'expss_output_default()'.
-
-
-Attaching package: 'expss'
-
-The following object is masked from 'package:labelled':
-
-    is.labelled
-
-The following objects are masked from 'package:stringr':
-
-    fixed, regex
-
-The following objects are masked from 'package:dplyr':
-
-    compute, contains, na_if, recode, vars, where
-
-The following objects are masked from 'package:purrr':
-
-    keep, modify, modify_if, when
-
-The following objects are masked from 'package:tidyr':
-
-    contains, nest
-
-The following object is masked from 'package:ggplot2':
-
-    vars
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
+\CommentTok{\# load data}
 \NormalTok{indicators\_data }\OtherTok{\textless{}{-}} \FunctionTok{read\_excel}\NormalTok{(}\StringTok{"input/indicators\_data.xlsx"}\NormalTok{)}
+
+\CommentTok{\# load XLSForm}
+\NormalTok{survey }\OtherTok{\textless{}{-}} \FunctionTok{read\_excel}\NormalTok{(}\StringTok{"input/tool/MoDa\_Tool.xlsx"}\NormalTok{, }\AttributeTok{sheet =} \StringTok{"survey"}\NormalTok{)}
+\NormalTok{choices }\OtherTok{\textless{}{-}} \FunctionTok{read\_excel}\NormalTok{(}\StringTok{"input/tool/MoDa\_Tool.xlsx"}\NormalTok{, }\AttributeTok{sheet =} \StringTok{"choices"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
 Analysis are produced with a purpose and must respect certain
-imperatives to ensure final usage. this chapter will
+imperatives to ensure final usage. this chapter will guide you through
+running analysis and produce results. You have collected and processed
+your data and now the fun starts. Data analysis is the practice of
+applying statistical and analytically tools to a dataset to serve
+actionable business insights.
 
-\hypertarget{categorical-analysis}{%
-\section{Categorical Analysis}\label{categorical-analysis}}
+\section{Categorical Analysis}\label{categorical-analysis}
 
-\hypertarget{select-one}{%
-\subsection{Select One}\label{select-one}}
+\subsection{Select One}\label{select-one}
 
-\hypertarget{select-multiple}{%
-\subsection{Select Multiple}\label{select-multiple}}
+\subsection{Select Multiple}\label{select-multiple}
 
-\hypertarget{numerical-analysis}{%
-\section{Numerical Analysis}\label{numerical-analysis}}
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{multi\_response\_odk\_single}\OtherTok{\textless{}{-}}\ControlFlowTok{function}\NormalTok{(data,labelset,}\AttributeTok{id\_string=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{multicolumn=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{other\_string=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{retain\_empty=}\ConstantTok{TRUE}\NormalTok{,}\AttributeTok{language=}\StringTok{"English"}\NormalTok{)\{}
+  
+  \ControlFlowTok{if}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{paste0}\NormalTok{(}\StringTok{"label::"}\NormalTok{,language)}\SpecialCharTok{\%in\%}\FunctionTok{colnames}\NormalTok{(labelset))\{}
+    
+\NormalTok{    newlanguage}\OtherTok{\textless{}{-}}\FunctionTok{gsub}\NormalTok{(}\StringTok{"label::"}\NormalTok{,}\StringTok{""}\NormalTok{,}\FunctionTok{colnames}\NormalTok{(}\FunctionTok{select}\NormalTok{(labelset,}\FunctionTok{contains}\NormalTok{(}\StringTok{"label"}\NormalTok{)))[}\DecValTok{1}\NormalTok{])}
+    
+    \FunctionTok{warning}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\StringTok{"language"}\NormalTok{,language,}\StringTok{"not found. Using first column labelled"}\NormalTok{,newlanguage,}\StringTok{"instead"}\NormalTok{))}
+\NormalTok{    language}\OtherTok{\textless{}{-}}\NormalTok{newlanguage}
+\NormalTok{  \}}
+  
+  \ControlFlowTok{if}\NormalTok{((}\FunctionTok{is.null}\NormalTok{(id\_string) }\SpecialCharTok{\&} \FunctionTok{is.null}\NormalTok{(multicolumn))}\SpecialCharTok{|}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(id\_string) }\SpecialCharTok{\&} \SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(multicolumn)))\{}
+    \FunctionTok{stop}\NormalTok{(}\StringTok{"Must include input for id\_string or multicolumn"}\NormalTok{)}
+\NormalTok{  \}}
+  
+  \ControlFlowTok{if}\NormalTok{(}\FunctionTok{is.null}\NormalTok{(multicolumn))\{}
+\NormalTok{    data }\SpecialCharTok{\%\textgreater{}\%} 
+      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{group=}\DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{select}\NormalTok{(X\_uuid,group,}\FunctionTok{contains}\NormalTok{(id\_string)) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{pivot\_longer}\NormalTok{(}\FunctionTok{contains}\NormalTok{(id\_string),}\AttributeTok{names\_to =} \StringTok{"value"}\NormalTok{,}\AttributeTok{values\_to =} \StringTok{"exist"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{filter}\NormalTok{(exist}\SpecialCharTok{==}\DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{value=}\FunctionTok{str\_remove}\NormalTok{(value,id\_string)) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{exist) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{full\_join}\NormalTok{(}
+\NormalTok{        labelset,}\AttributeTok{by=}\FunctionTok{c}\NormalTok{(}\StringTok{"value"}\OtherTok{=}\StringTok{"name"}\NormalTok{))}\OtherTok{{-}\textgreater{}}\NormalTok{long\_responses}
+\NormalTok{  \}}
+  \ControlFlowTok{else}\NormalTok{\{}
+    
+\NormalTok{    data }\SpecialCharTok{\%\textgreater{}\%} 
+      \FunctionTok{separate}\NormalTok{(multicolumn,}\AttributeTok{sep=}\StringTok{" "}\NormalTok{,}\AttributeTok{into=}\FunctionTok{paste0}\NormalTok{(multicolumn,}\DecValTok{1}\SpecialCharTok{:}\NormalTok{(}\DecValTok{1}\SpecialCharTok{+}\FunctionTok{max}\NormalTok{(}\FunctionTok{str\_count}\NormalTok{(.[,multicolumn],}\StringTok{" "}\NormalTok{))))) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{select}\NormalTok{(X\_uuid,}\FunctionTok{contains}\NormalTok{(multicolumn)) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{pivot\_longer}\NormalTok{(}\FunctionTok{contains}\NormalTok{(multicolumn),}\AttributeTok{names\_to =} \StringTok{"selection"}\NormalTok{,}\AttributeTok{values\_to =} \StringTok{"value"}\NormalTok{,}\AttributeTok{values\_drop\_na =} \ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{selection) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{group=}\DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{full\_join}\NormalTok{(}
+\NormalTok{        labelset,}\AttributeTok{by=}\FunctionTok{c}\NormalTok{(}\StringTok{"value"}\OtherTok{=}\StringTok{"name"}\NormalTok{))}\OtherTok{{-}\textgreater{}}\NormalTok{long\_responses}
+\NormalTok{  \}}
+  
+  
+\NormalTok{  overall\_respondents\_bygroup }\OtherTok{\textless{}{-}}\NormalTok{ data  }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{group=}\DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{group\_by}\NormalTok{(group) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{summarise}\NormalTok{(}\AttributeTok{N\_respondents=}\FunctionTok{n}\NormalTok{()) }
+  
+\NormalTok{  long\_responses }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{count=}\FunctionTok{ifelse}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(group),}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{group=}\DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{group\_by}\NormalTok{(group) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{N\_responses=}\FunctionTok{sum}\NormalTok{(count)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(value,group,}\AttributeTok{label=}\FunctionTok{contains}\NormalTok{(}\FunctionTok{paste0}\NormalTok{(}\StringTok{"label::"}\NormalTok{,language)),count,N\_responses) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{group\_by}\NormalTok{(value,group,label,N\_responses) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{summarise}\NormalTok{(}\AttributeTok{n=}\FunctionTok{sum}\NormalTok{(count)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{full\_join}\NormalTok{(overall\_respondents\_bygroup,}\AttributeTok{by=}\StringTok{"group"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{per\_responses=}\NormalTok{n}\SpecialCharTok{/}\NormalTok{N\_responses,}
+           \AttributeTok{per\_respondents=}\NormalTok{n}\SpecialCharTok{/}\NormalTok{N\_respondents) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(value,label,n,per\_responses,per\_respondents,N\_responses,N\_respondents) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(per\_responses))}\OtherTok{{-}\textgreater{}}\NormalTok{output}
+  
+  \ControlFlowTok{if}\NormalTok{(retain\_empty}\SpecialCharTok{==}\ConstantTok{FALSE}\NormalTok{)\{}
+\NormalTok{    output}\OtherTok{\textless{}{-}}\FunctionTok{filter}\NormalTok{(output,per\_responses}\SpecialCharTok{\textgreater{}}\DecValTok{0}\NormalTok{)}
+\NormalTok{  \}}
+  
+  
+  
+  \FunctionTok{return}\NormalTok{(output)}
+\NormalTok{\}}
 
-\hypertarget{averages}{%
-\subsection{Averages}\label{averages}}
+\NormalTok{multi\_response\_odk}\OtherTok{\textless{}{-}}\ControlFlowTok{function}\NormalTok{(data,labelset,}\AttributeTok{id\_string=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{multicolumn=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{group=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{other\_string=}\ConstantTok{NULL}\NormalTok{,}\AttributeTok{retain\_empty=}\ConstantTok{TRUE}\NormalTok{,}\AttributeTok{language=}\StringTok{"English"}\NormalTok{)\{}
+  
+  \ControlFlowTok{if}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{paste0}\NormalTok{(}\StringTok{"label::"}\NormalTok{,language)}\SpecialCharTok{\%in\%}\FunctionTok{colnames}\NormalTok{(labelset))\{}
+    
+\NormalTok{    newlanguage}\OtherTok{\textless{}{-}}\FunctionTok{gsub}\NormalTok{(}\StringTok{"label::"}\NormalTok{,}\StringTok{""}\NormalTok{,}\FunctionTok{colnames}\NormalTok{(}\FunctionTok{select}\NormalTok{(labelset,}\FunctionTok{contains}\NormalTok{(}\StringTok{"label"}\NormalTok{)))[}\DecValTok{1}\NormalTok{])}
+    \FunctionTok{warning}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\StringTok{"language"}\NormalTok{,language,}\StringTok{"not found. Using first column labelled"}\NormalTok{,newlanguage,}\StringTok{"instead"}\NormalTok{))}
+\NormalTok{  \}}
+  
+  \ControlFlowTok{if}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.null}\NormalTok{(group))\{}
+    
+\NormalTok{    output}\OtherTok{\textless{}{-}}\NormalTok{   data }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{split}\NormalTok{(data[,group],) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{map}\NormalTok{(}\AttributeTok{.f=}\NormalTok{multi\_response\_odk\_single,labelset,id\_string,multicolumn,other\_string,retain\_empty,language) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{list\_rbind}\NormalTok{(}\AttributeTok{names\_to =}\NormalTok{ group) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{suppressMessages}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{suppressWarnings}\NormalTok{()}
+    
+    
+\NormalTok{  \}}
+  \ControlFlowTok{else}\NormalTok{\{}
+    
+\NormalTok{    output}\OtherTok{\textless{}{-}} \FunctionTok{multi\_response\_odk\_single}\NormalTok{(data,labelset,id\_string,multicolumn,other\_string,retain\_empty,language) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{suppressMessages}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{suppressWarnings}\NormalTok{()}
+    
+\NormalTok{  \}}
+  \FunctionTok{return}\NormalTok{(output)}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
 
-\hypertarget{meanmedium}{%
-\subsection{Mean/Medium}\label{meanmedium}}
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{labels}\OtherTok{\textless{}{-}}\FunctionTok{filter}\NormalTok{(choices,list\_name}\SpecialCharTok{==}\StringTok{"OtherCBTSrc"}\NormalTok{)}
 
-\hypertarget{survey-weights}{%
-\section{Survey Weights}\label{survey-weights}}
+\CommentTok{\# fixing the bug}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.100} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.100}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.201} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.201}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.202} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.202}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.203} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.203}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.204} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.204}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.300} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.300}\NormalTok{)}
+\NormalTok{indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.999} \OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(indicators\_data}\SpecialCharTok{$}\NormalTok{HHAsstOthCBTRecName}\FloatTok{.999}\NormalTok{)}
+
+\NormalTok{labels}\SpecialCharTok{$}\NormalTok{name }\OtherTok{\textless{}{-}} \FunctionTok{as.character}\NormalTok{(labels}\SpecialCharTok{$}\NormalTok{name)}
+
+
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{id\_string=}\StringTok{"HHAsstOthCBTRecName."}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 7 x 7
+  value label          n per_responses per_respondents N_responses N_respondents
+  <chr> <chr>      <dbl>         <dbl>           <dbl>       <dbl>         <int>
+1 300   Religious~   525         0.148           0.525        3549          1000
+2 999   Other        521         0.147           0.521        3549          1000
+3 201   Family       520         0.147           0.52         3549          1000
+4 203   Community    501         0.141           0.501        3549          1000
+5 204   Community~   497         0.140           0.497        3549          1000
+6 202   Friends      495         0.139           0.495        3549          1000
+7 100   Government   490         0.138           0.49         3549          1000
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{id\_string=}\StringTok{"HHAsstOthCBTRecName."}\NormalTok{,}\AttributeTok{retain\_empty =} \ConstantTok{FALSE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 7 x 7
+  value label          n per_responses per_respondents N_responses N_respondents
+  <chr> <chr>      <dbl>         <dbl>           <dbl>       <dbl>         <int>
+1 300   Religious~   525         0.148           0.525        3549          1000
+2 999   Other        521         0.147           0.521        3549          1000
+3 201   Family       520         0.147           0.52         3549          1000
+4 203   Community    501         0.141           0.501        3549          1000
+5 204   Community~   497         0.140           0.497        3549          1000
+6 202   Friends      495         0.139           0.495        3549          1000
+7 100   Government   490         0.138           0.49         3549          1000
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# split it by admin}
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{id\_string=}\StringTok{"HHAsstOthCBTRecName."}\NormalTok{,}\AttributeTok{retain\_empty =} \ConstantTok{FALSE}\NormalTok{,}\AttributeTok{group=}\StringTok{"ADMIN1Name"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 35 x 8
+   ADMIN1Name value label            n per_responses per_respondents N_responses
+   <chr>      <chr> <chr>        <dbl>         <dbl>           <dbl>       <dbl>
+ 1 Admin 1    999   Other          119         0.156           0.569         762
+ 2 Admin 1    203   Community      113         0.148           0.541         762
+ 3 Admin 1    204   Community l~   112         0.147           0.536         762
+ 4 Admin 1    300   Religious o~   107         0.140           0.512         762
+ 5 Admin 1    201   Family         106         0.139           0.507         762
+ 6 Admin 1    202   Friends        103         0.135           0.493         762
+ 7 Admin 1    100   Government     102         0.134           0.488         762
+ 8 Admin 2    300   Religious o~   121         0.160           0.555         755
+ 9 Admin 2    202   Friends        111         0.147           0.509         755
+10 Admin 2    201   Family         108         0.143           0.495         755
+# i 25 more rows
+# i 1 more variable: N_respondents <int>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{multicolumn =} \StringTok{"HHAsstOthCBTRecName"}\NormalTok{,}\AttributeTok{retain\_empty =} \ConstantTok{FALSE}\NormalTok{,}\AttributeTok{group=}\StringTok{"ADMIN1Name"}\NormalTok{,}\AttributeTok{language=}\StringTok{"English (en)"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(ADMIN1Name,}\AttributeTok{Crop=}\NormalTok{label,n,}\StringTok{\textasciigrave{}}\AttributeTok{Percentage of Respondents}\StringTok{\textasciigrave{}}\OtherTok{=}\NormalTok{per\_respondents) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Percentage of Respondents}\StringTok{\textasciigrave{}}\OtherTok{=}\NormalTok{scales}\SpecialCharTok{::}\FunctionTok{percent}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Percentage of Respondents}\StringTok{\textasciigrave{}}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+# A tibble: 48 x 4
+   ADMIN1Name Crop                       n `Percentage of Respondents`
+   <chr>      <chr>                  <dbl> <chr>                      
+ 1 Admin 1    <NA>                     762 364.593%                   
+ 2 Admin 1    <NA>                     701 335.407%                   
+ 3 Admin 1    Other                    118 56.459%                    
+ 4 Admin 1    Community                113 54.067%                    
+ 5 Admin 1    Community leaders        112 53.589%                    
+ 6 Admin 1    Religious organization   107 51.196%                    
+ 7 Admin 1    Family                   106 50.718%                    
+ 8 Admin 1    Friends                  103 49.282%                    
+ 9 Admin 1    Government               102 48.804%                    
+10 Admin 1    <NA>                       1 0.478%                     
+# i 38 more rows
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{multicolumn =} \StringTok{"HHAsstOthCBTRecName"}\NormalTok{,}\AttributeTok{retain\_empty =} \ConstantTok{FALSE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\#adding some lines so that no answer comes last and other selections are in reversing order with most popular at top}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{y\_axis=}\FunctionTok{reorder}\NormalTok{(label,n,sum,}\AttributeTok{na.rm=}\NormalTok{T)) }\SpecialCharTok{\%\textgreater{}\%}
+    \CommentTok{\# mutate(y\_axis=relevel(y\_axis,ref="No answer")) \%\textgreater{}\%}
+\CommentTok{\#then using geom\_col and some standard ggplot functions to make it look a bit prettier}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y=}\NormalTok{y\_axis,}\AttributeTok{x=}\NormalTok{per\_respondents))}\SpecialCharTok{+}
+    \FunctionTok{geom\_col}\NormalTok{(}\AttributeTok{col=}\StringTok{"black"}\NormalTok{)}\SpecialCharTok{+}
+      \FunctionTok{geom\_text}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{label=}\NormalTok{scales}\SpecialCharTok{::}\FunctionTok{percent}\NormalTok{(per\_respondents)),}\AttributeTok{hjust=}\SpecialCharTok{{-}}\FloatTok{0.1}\NormalTok{,}\AttributeTok{size=}\DecValTok{2}\NormalTok{)}\SpecialCharTok{+}
+        \FunctionTok{scale\_x\_continuous}\NormalTok{(}\AttributeTok{labels=}\NormalTok{scales}\SpecialCharTok{::}\NormalTok{percent,}\AttributeTok{limits=}\FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.5}\NormalTok{))}\SpecialCharTok{+}
+          \FunctionTok{xlab}\NormalTok{(}\StringTok{"Percent of Respondents"}\NormalTok{)}\SpecialCharTok{+}
+            \FunctionTok{ylab}\NormalTok{(}\StringTok{"Response"}\NormalTok{)}\SpecialCharTok{+}
+              \FunctionTok{ggtitle}\NormalTok{(}\StringTok{"Which crops do you grow?"}\NormalTok{,}\AttributeTok{subtitle=}\StringTok{"Multiple Responses Allowed"}\NormalTok{)}\SpecialCharTok{+}
+                \FunctionTok{theme\_light}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning in multi_response_odk(data = indicators_data, labelset = labels, :
+language English not found. Using first column labelled English (en) instead
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 6 rows containing missing values or values outside the scale range
+(`geom_col()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 6 rows containing missing values or values outside the scale range
+(`geom_text()`).
+\end{verbatim}
+
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_four_files/figure-pdf/unnamed-chunk-5-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{multi\_response\_odk}\NormalTok{(}\AttributeTok{data=}\NormalTok{indicators\_data,}\AttributeTok{labelset=}\NormalTok{labels,}\AttributeTok{multicolumn =} \StringTok{"HHAsstOthCBTRecName"}\NormalTok{,}\AttributeTok{retain\_empty =} \ConstantTok{FALSE}\NormalTok{,}\AttributeTok{group=}\StringTok{"FCSCat"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\#adding some lines so that no answer comes last and other selections are in reversing order with most popular at top}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{y\_axis=}\FunctionTok{reorder}\NormalTok{(label,n,sum,}\AttributeTok{na.rm=}\NormalTok{T)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{y\_axis=}\FunctionTok{relevel}\NormalTok{(y\_axis,}\AttributeTok{ref=}\StringTok{"Other"}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\#then using geom\_col and some standard ggplot functions to make it look a bit prettier}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y=}\NormalTok{y\_axis,}\AttributeTok{x=}\NormalTok{per\_respondents,}\AttributeTok{fill=}\NormalTok{FCSCat))}\SpecialCharTok{+}
+  \FunctionTok{geom\_col}\NormalTok{(}\AttributeTok{col=}\StringTok{"black"}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{facet\_wrap}\NormalTok{(}\SpecialCharTok{\textasciitilde{}}\NormalTok{FCSCat,}\AttributeTok{nrow=}\DecValTok{1}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{geom\_text}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{label=}\NormalTok{scales}\SpecialCharTok{::}\FunctionTok{percent}\NormalTok{(per\_respondents)),}\AttributeTok{hjust=}\SpecialCharTok{{-}}\FloatTok{0.1}\NormalTok{,}\AttributeTok{size=}\DecValTok{2}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{scale\_x\_continuous}\NormalTok{(}\AttributeTok{labels=}\NormalTok{scales}\SpecialCharTok{::}\NormalTok{percent,}\AttributeTok{limits=}\FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}\SpecialCharTok{+}
+  \FunctionTok{xlab}\NormalTok{(}\StringTok{"Percent of Respondents"}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{ylab}\NormalTok{(}\StringTok{"Response"}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{ggtitle}\NormalTok{(}\StringTok{"Which crops do you grow?"}\NormalTok{,}\AttributeTok{subtitle=}\StringTok{"Multiple Responses Allowed"}\NormalTok{)}\SpecialCharTok{+}
+  \FunctionTok{theme\_light}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Warning in multi_response_odk(data = indicators_data, labelset = labels, :
+language English not found. Using first column labelled English (en) instead
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 6 rows containing missing values or values outside the scale range
+(`geom_col()`).
+\end{verbatim}
+
+\begin{verbatim}
+Warning: Removed 6 rows containing missing values or values outside the scale range
+(`geom_text()`).
+\end{verbatim}
+
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_four_files/figure-pdf/unnamed-chunk-6-1.pdf}}
+
+\section{Numerical Analysis}\label{numerical-analysis}
+
+\subsection{Averages}\label{averages}
+
+\subsection{Mean/Medium}\label{meanmedium}
+
+\section{Statistical Significance
+Tests}\label{statistical-significance-tests}
+
+\section{Survey Weights}\label{survey-weights}
 
 weighing survey respondents are adjusted to better represent the target
 population. to do so, the weight given each respondent is adjusted to
 represent the number of similar respondents in the target population.
 
+weights can be used for different reasons. in most of the cases, we will
+use
+
 \bookmarksetup{startatroot}
 
-\hypertarget{data-visualization}{%
-\chapter{Data Visualization}\label{data-visualization}}
+\chapter{Data Visualization}\label{data-visualization}
 
 The Data Visualization Guidelines are designed to support VAM and
 Monitoring Officers in building clear and effective charts, dashboards
@@ -1631,20 +2053,12 @@ elements and types to align with data visualization best practices.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-2-1.pdf}}
 
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-2-1.pdf}
-
-}
-
-\end{figure}
-
-\hypertarget{visualizing-outcome-indicators}{%
 \section{Visualizing Outcome
-Indicators}\label{visualizing-outcome-indicators}}
+Indicators}\label{visualizing-outcome-indicators}
 
-\hypertarget{food-consumption-score}{%
-\subsection{Food Consumption Score}\label{food-consumption-score}}
+\subsection{Food Consumption Score}\label{food-consumption-score}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1705,16 +2119,9 @@ Indicators}\label{visualizing-outcome-indicators}}
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-4-1.pdf}}
 
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-4-1.pdf}
-
-}
-
-\end{figure}
-
-\hypertarget{vitamin-a-rich-foods}{%
-\subsection{Vitamin-A Rich Foods}\label{vitamin-a-rich-foods}}
+\subsection{Vitamin-A Rich Foods}\label{vitamin-a-rich-foods}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1770,16 +2177,9 @@ the `.groups` argument.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-5-1.pdf}}
 
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-5-1.pdf}
-
-}
-
-\end{figure}
-
-\hypertarget{reduced-coping-strategies}{%
-\subsection{Reduced Coping Strategies}\label{reduced-coping-strategies}}
+\subsection{Reduced Coping Strategies}\label{reduced-coping-strategies}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1831,17 +2231,10 @@ the `.groups` argument.
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-7-1.pdf}}
 
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-7-1.pdf}
-
-}
-
-\end{figure}
-
-\hypertarget{livelihood-coping-strategies}{%
 \subsection{Livelihood Coping
-Strategies}\label{livelihood-coping-strategies}}
+Strategies}\label{livelihood-coping-strategies}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1896,22 +2289,13 @@ Strategies}\label{livelihood-coping-strategies}}
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-8-1.pdf}}
 
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-8-1.pdf}
+\section{Chart Types}\label{chart-types}
 
-}
+\subsection{Bar/Comumn Chart}\label{barcomumn-chart}
 
-\end{figure}
-
-\hypertarget{chart-types}{%
-\section{Chart Types}\label{chart-types}}
-
-\hypertarget{barcomumn-chart}{%
-\subsection{Bar/Comumn Chart}\label{barcomumn-chart}}
-
-\hypertarget{grouped-bar-chart}{%
-\subsection{Grouped Bar Chart}\label{grouped-bar-chart}}
+\subsection{Grouped Bar Chart}\label{grouped-bar-chart}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1942,21 +2326,13 @@ Strategies}\label{livelihood-coping-strategies}}
 \end{Highlighting}
 \end{Shaded}
 
-\begin{figure}[H]
-
-{\centering \includegraphics{chapter_five_files/figure-pdf/unnamed-chunk-9-1.pdf}
-
-}
-
-\end{figure}
+\pandocbounded{\includegraphics[keepaspectratio]{chapter_five_files/figure-pdf/unnamed-chunk-9-1.pdf}}
 
 \bookmarksetup{startatroot}
 
-\hypertarget{reporting-dashboards}{%
-\chapter{Reporting \& Dashboards}\label{reporting-dashboards}}
+\chapter{Reporting \& Dashboards}\label{reporting-dashboards}
 
-\hypertarget{reflections-session}{%
-\section{Reflections Session}\label{reflections-session}}
+\section{Reflections Session}\label{reflections-session}
 
 You have now done the bigest part of the work and have analyzed data
 with visualizations. therefdore you'll need to conduct reflection
@@ -1966,8 +2342,7 @@ select the most relevent analysis and charts for interpreatation.in
 order to keep participants focused, \textbf{a reflection session shall
 not last more than 2 hours and include not more than 60 slides}
 
-\hypertarget{take-reflections-note}{%
-\subsection{Take Reflections Note}\label{take-reflections-note}}
+\subsection{Take Reflections Note}\label{take-reflections-note}
 
 \begin{itemize}
 \tightlist
@@ -1982,8 +2357,7 @@ not last more than 2 hours and include not more than 60 slides}
   Clasify: define level of sensitivity for certian topics if required
 \end{itemize}
 
-\hypertarget{using-data-library}{%
-\section{Using Data Library}\label{using-data-library}}
+\section{Using Data Library}\label{using-data-library}
 
 \texttt{Data\ Library} is WFP's secure space for indexing, versioning
 and storing data. this service is easy to use and is backed by WFP
@@ -2006,9 +2380,8 @@ the Data Library servies three purposes:
   accountability.
 \end{itemize}
 
-\hypertarget{how-to-package-your-project}{%
 \subsection{How to Package your
-Project}\label{how-to-package-your-project}}
+Project}\label{how-to-package-your-project}
 
 for each completed assessment and monitoring survey, CO should upload
 the following informaton in Data Library, each in seperate folder. good
@@ -2047,15 +2420,15 @@ needs assessment and monitoring survey data available as a public good
 
 \bookmarksetup{startatroot}
 
-\hypertarget{references}{%
-\chapter*{References}\label{references}}
+\chapter*{References}\label{references}
 \addcontentsline{toc}{chapter}{References}
 
 \markboth{References}{References}
 
-\hypertarget{refs}{}
-\begin{CSLReferences}{0}{0}
+\phantomsection\label{refs}
+\begin{CSLReferences}{0}{1}
 \end{CSLReferences}
+
 
 
 
